@@ -1,9 +1,12 @@
 # Arduino-HTML-GUI-FOR-I2C-Devices
+
+![Photo_demo_GUI](https://github.com/[username]/[reponame]/blob/[branch]/image.jpg?raw=true)
+
 1. What it is for?
 ------------------
 its for quickly testing I2C devices on arduino. + with GUI interface + without any library
 this tool will be most useful when you are planning to write a library by just using its datasheet(which has its register map)
-
+ 
 2. How to setup:
 ----------------
 on arduino: forget everything and just install given code.
