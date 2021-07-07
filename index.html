@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title></title>
+</head>
+
+<body>
+<style>
+body {
+		  font-family: Arial, Helvetica, sans-serif;
+	}
+input, textarea, select {
+  -webkit-transition: all 0.30s ease-in-out;
+  -moz-transition: all 0.30s ease-in-out;
+  -ms-transition: all 0.30s ease-in-out;
+  -o-transition: all 0.30s ease-in-out;
+  outline: none;
+  padding: 3px 0px 3px 3px;
+  border: 1px solid #DDDDDD;
+}
+ 
+input:focus, textarea:focus, select:focus {
+  box-shadow: 0 0 5px rgba(81, 203, 238, 1);
+  padding: 3px 0px 3px 3px;
+  border: 1px solid rgba(81, 203, 238, 1);
+}
+#log {
+    height: 20vh;
+    width: 100%;
+    overflow: scroll;
+    background-color: black;
+    color:white;
+    white-space: pre;
+}
+div{
+	padding-right:2px;
+}
+.MbPCM{
+	background-color:DodgerBlue;
+	color:white;
+	border:1px solid blue;
+	border-radius:3px;
+	padding:2px;
+	font-size:16px;
+	margin:2px;
+	display:inline-block;
+}
+</style>
+
+    <div class="wrapper">
+        <div>
+            <button id="connect" onClick="connect()">Connect</button>
+			<input id="input" type="text" onKeyPress="handle(event)" disabled />
+            <button id="sendButton" onClick="send()" disabled>Send</button>
+			<input type="file" id="myFile">
+        </div>
+        <div id="log"></div>
+		<div id="main" style="display:flex;"></div>
+    </div>
+    
+	
+	
+<script>
+	//<script src="source.js">script>
+	
+var input = document.getElementById("myFile");
+var ids=0;
+var currParent = 0;
+var RTNavailable = false;
+var lastRTNByte = "";
+input.addEventListener("change", function () {
+  if (this.files && this.files[0]) {
+    var myFile = this.files[0];
+    var reader = new FileReader();
+    
+    reader.addEventListener('load', function (e) {
+       parseFile(e.target.result);
+    });
+    
+    reader.readAsBinaryString(myFile);
+  }
+});
+async function gv(devID,regID,mask){
+	sendtoCOM('2',devID,regID,mask,'0');
+	return await waitForRTN();
+}
+function sv(devID,regID,mask,sval){
+	sendtoCOM('1',devID,regID,mask,sval);
+	return;
+}
+async function svr(devID,regID,mask,sval){
+	sendtoCOM('1',devID,regID,mask,sval);
+	return await waitForRTN();
+}
+async function sendTB(devID,regID,mask){
+	sendtoCOM('3',devID,regID,mask,'0x00');
+}
+async function waitForRTN(){
+    while(RTNavailable==false) {
+		await delay(50);
+    }
+	RTNavailable = false;
+	return lastRTNByte;
+}
+function parseFile(data){
+	var lines = data.split("\n");
+	for(var i=0;i<lines.length;i++){
+		var paras = lines[i].split("!");
+		switch(paras[0]){
+			case "CB":		//toggle bit. 			GUI: checkbox
+				addCheckBox(paras);
+				break;
+			case "BT":		//send commands  		GUI: button
+				addButton(paras);
+				break;
+			case "TB":		//value					GUI: Text box
+				contiBox(paras);
+				break;
+			case "SO":		//setFromOptions		GUI: combo box
+				addCombo(paras);
+				break;
+			case "FR":		//Frame					GUI: div
+				addFrame(paras[1],paras[2]);
+				break;
+		
+		}
+	}
+}
+function addFrame(caption,style){
+	var id = genrateID();
+	currParent = 0;
+	var element = addZNode('<div id="'+id+'"><div class="MbPCM"><b>'+caption+'</b></div><div>');
+	element.setAttribute('style',style);
+	currParent = id;
+}
+function addCheckBox(arr){
+	var id="";if(arr[2]!='0'){id = ' id="'+id+'" ';}
+	var checked ="";if(arr[3]==1){checked="checked";}else{checked="";}
+	var onclickScriptWrapper = "async function oclick(e)" + arr[4] + " oclick(this);"; // script format: {script;}
+	var zNodelabel = addZNode('<div>'+ arr[1] + '</div><input type="checkbox" ' + id + ' onclick="' + onclickScriptWrapper + '" '+ checked +'>');
+}
+function tb(el,devID,regID,mask){ //direct use as script for checkbox.
+	if(el.checked==true){
+		sendtoCOM("1",devID,regID,mask,"1");
+	}else{
+		sendtoCOM("1",devID,regID,mask,"0");
+	}
+}
+function addButton(arr){ //random id generation,
+	// BT|Caption|ID|script
+	var id="";if(arr[2]!='0'){id = 'id="'+id+'"';}
+	var onclickScriptWrapper = "async function oclick(e)" + arr[3] + " oclick(this);"; // script format: {script;}
+	var zNode = addZNode('<button '+id+' onclick="'+ onclickScriptWrapper +'">'+ arr[1] +'</button>');
+}
+function contiBox(arr){
+	// BT|Caption|ID|script
+	var id="";if(arr[2]!='0'){id = ' id="'+id+'" ';}
+	var onclickScriptWrapper = "async function oclick(ev,e){if(ev.key=='Enter')" + arr[4] + "} oclick(event,this);"; // script format: {script;}
+	var node = addZNode('<div>'+ arr[1] + '</div><input type="text" '+ id +' style="width:29%" value="'+ arr[3] +'" onkeydown="'+ onclickScriptWrapper +'">');
+}
+
+function addCombo(arr){
+	var id="";if(arr[2]!='0'){id = ' id="'+id+'" ';}
+	var onclickScriptWrapper = "async function oclick(e)" + arr[5] + " oclick(this);"; // script format: {script;}
+	var ih = '<div>'+ arr[1] + '</div>';
+	ih += '<select style="width:30%"'+ id +'onchange="'+ onclickScriptWrapper +'">';
+	var oplist = arr[4].split("|");
+	for(var i=0;i<oplist.length;i++){
+		var ops = oplist[i].split(":");
+		if(i!=arr[3]){
+			ih += '<option value="' + ops[1] + '">' + ops[0] + '</option>';
+		}else{
+			ih += '<option value="' + ops[1] + '" selected>' + ops[0] + '</option>';
+		}
+	}
+	ih += '</select>';
+	var z = addZNode(ih);
+}
+function sosend(el,devID,regID,mask){
+	sendtoCOM('1',devID,regID,mask,el.options[el.selectedIndex].value);
+}
+function addZNode(text){
+	var zNodelabel = document.createElement ('div');
+	zNodelabel.setAttribute("style","display: flex; justify-content: flex-end;margin: 5px 1px 3px 0px;");
+	zNodelabel.innerHTML = text;
+	if(currParent==0){
+		document.getElementById("main").appendChild (zNodelabel);
+	}else{
+		document.getElementById(currParent).appendChild (zNodelabel);
+	}
+	return zNodelabel;
+}
+function sendtoCOM(type,devId,regID,mask,value){
+	var out = '';
+	out+= String.fromCharCode(parsee(type));
+	out+= String.fromCharCode(parsee(devId));
+	out+= String.fromCharCode(parsee(regID));
+	out+= String.fromCharCode(parsee(mask));
+	out+= String.fromCharCode(parsee(value));
+	writeToStream(out);
+}
+
+function parsee(ss){
+	var s = ss + "";
+	if(s.length<3){
+		return parseInt(s,10);
+	}
+	var radix = s.substring(0,2);
+	var valu = s.substring(2);
+	switch(radix){
+		case "0x":
+			return parseInt(valu,16);
+			break;
+		case "0b":
+			return parseInt(valu,2);
+			break;
+		default:
+			return parseInt(s,10);
+			break;
+	}	
+}
+function genrateID(){
+	ids++;
+	return ids;
+}
+function $(id){
+	return document.getElementById(id);
+}
+const delay = ms => new Promise(res => setTimeout(res, ms));
+const log = document.getElementById("log")
+
+
+function send() {
+    const toSend = document.getElementById("input").value
+    writeToStream(toSend)
+    document.getElementById("input").value = ""
+
+}
+
+function handle(e) {
+    if (e.keyCode === 13) {
+        e.preventDefault();
+        send();
+    }
+}
+
+async function connect() {
+    const inputField = document.getElementById("input");
+    inputField.disabled = false;
+    inputField.focus();
+    inputField.select();
+    document.getElementById("sendButton").disabled = false;
+    document.getElementById("connect").disabled = true;
+
+    port = await navigator.serial.requestPort();
+    // - Wait for the port to open.
+    await port.open({ baudRate: 115200 });
+    console.log('Open');
+
+
+
+    let decoder = new TextDecoderStream();
+    inputDone = port.readable.pipeTo(decoder.writable);
+    inputStream = decoder.readable;
+
+    const encoder = new TextEncoderStream();
+    outputDone = encoder.readable.pipeTo(port.writable);
+    outputStream = encoder.writable;
+
+    reader = inputStream.getReader();
+    readLoop();
+}
+
+function writeToStream(line) {
+    const writer = outputStream.getWriter();
+    //console.log('[SEND]', line);
+    writer.write(line);
+    writer.releaseLock();
+}
+function displayString(str){
+	var out = "";
+	for (var i = 0; i < str.length; ++i) {
+		var code = str.charCodeAt(i);
+		out += code + ',';
+	}
+	console.log('ByteArray:',out);
+}
+function logout(line){
+	log.textContent += line;	//new line was lost during splitting.
+	log.scrollTop = log.scrollHeight;
+}
+async function readLoop() {
+    console.log('Readloop');
+	var line = "";
+    while (true) {
+        const { value, done } = await reader.read();
+        //console.log('value', value);
+		//displayString(value);
+		line += value;
+		if(value.slice(-1)=='\n'){ 						//if line has '\n' in end.
+			//console.log('Newline detected:',line);
+			var lines = line.split('\n');				
+			for(var i=0;i<lines.length-1;i++){			//last line is always empty
+				//console.log(i+'th line:',lines[i]);
+				if(lines[i].substring(0,5)==':RTN:'){	//if line starts with :RTN:
+					//console.log(':RTN: detected:',lines[i].substring(5).slice(0,-1));
+					RTNavailable = true;
+					lastRTNByte = lines[i].substring(5).slice(0,-1);	
+				}
+				log.textContent += lines[i] +'\n';	//new line was lost during splitting.
+				log.scrollTop = log.scrollHeight;
+			}
+			line = "";
+		}
+        if (done) {
+            console.log('[readLoop] DONE', done);
+            reader.releaseLock();
+            break;
+        }
+    }
+}
+</script>
+</body>
+
+</html>
