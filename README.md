@@ -1,6 +1,6 @@
 # Arduino-HTML-GUI-FOR-I2C-Devices
 
-![Photo_demo_GUI](https://github.com/[username]/[reponame]/blob/[branch]/image.jpg?raw=true)
+![Photo_demo_GUI](QN8027GUI.jpg?raw=true)
 
 1. What it is for?
 ------------------
