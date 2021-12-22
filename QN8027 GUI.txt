@@ -1,0 +1,34 @@
+**Basic**
+FR!Basic!width:20%;background-color:gainsboro;margin:2px;padding:5px;border:1px solid black;border-radius:5px;display:inline-block;
+CB!Power On!0!0!{tb(e,'0x2C','0x00','0b00100000');}
+BT!RESET!0!{sv('0x2C','0x00','0b10000000','0b00000001');}
+BT!CALIBRATE!0!{sv('0x2C','0x00','0b01000000','0b00000001');sv('0x2C','0x00','0b01000000','0b00000000');}
+TB!Tx Frequency(76-108MHz)!0!88.8!{var ch = Math.round((parseFloat(e.value)-76.00)*20);var hi = ch >>> 8;var lo = ch & 0xFF;await delay(100);sv('0x2C','0x00','0b00000011',hi);sv('0x2C','0x01','0xFF',lo);}
+BT!ChipInfo!0!{var out='';var fm = await gv('0x2C','0x06','0b11110000'); if(fm==4){out+='QN8027 ';}var maj = await gv('0x2C','0x06','0b00001111');var minior = await gv('0x2C','0x05','0b00000011');out+= 'v' + maj + '.' + minior; logout(out+'\n');}
+
+**Audio**
+FR!Audio!width:25%;background-color:#404040;color:white;margin:2px;padding:5px;border:1px solid black;border-radius:5px;display:inline-block;
+CB!Mute Audio!0!0!{tb(e,'0x2C','0x00','0b00001000');}
+CB!Scramble Audio!0!0!{tb(e,'0x2C','0x02','0b01000000');}
+CB!Pre Emphasis 75uS!0!1!{tb(e,'0x2C','0x02','0b10000000');}
+CB!Mono Audio!0!0!{tb(e,'0x2C','0x00','0b00010000');}
+SO!Input Impedence!0!2!5 K&#8486;:0|10 K&#8486;:1|20 K&#8486;:2|40 K&#8486;:3!{sosend(e,'0x2C','0x04','0b00000011');}
+SO!Digital Gain!0!0!0 dB:0|1 dB:1|2 dB:2!{sosend(e,'0x2C','0x04','0b00001100');}
+SO!Input Buffer Gain!0!3!Level 0:0|Level 1:1|Level 2:2|Level 3:3|Level 4:4|Level 5:5!{sosend(e,'0x2C','0x04','0b01110000');}
+SO!No Audio Auto Off!0!2!After 58sec:0|After 59s:1|After 60s:2|Never:3!{sosend(e,'0x2C','0x02','0b00110000');}
+
+**Radio**
+FR!Radio!width:25%;background-color:teal;color:white;margin:2px;padding:5px;border:1px solid black;border-radius:5px;display:inline-block;
+TB!TxPower(71 to 149 dBu)!0!149!{var cv = ((parseInt(e.value)-71)/0.62);var chipval = parseInt(cv);sv('0x2C','0x10','0b01111111',chipval);}
+TB!Frequency Deviation(0-148kHz)!0!75!{var cv = parseInt(e.value)/0.58; var chipval = parseInt(cv);sv('0x2C','0x11','0b11111111',chipval);}
+SO!Pilot Freq Deviation!0!2!7% of 75kHz:7|8% of 75kHz:8|9% of 75kHz:9|10% of 75kHz!{sosend(e,'0x2C','0x02','0b00001111');}
+TB!RDS Freq Deviation(0-44kHz)!0!2.1!{var cv = parseInt(e.value)/0.35; var chipval = parseInt(cv);sv('0x2C','0x12','0b01111111',chipval);}
+SO!Clock Source!0!0!Crystal:0|Inject Clock:1|sin wave:2|diff sin wave:3!{sosend(e,'0x2C','0x03','0b11000000');}
+TB!Clock Current(0-400uA)!0!100!{var cv = parseInt(e.value)/6.25; var chipval = parseInt(cv);sv('0x2C','0x03','0b01111111',chipval);}
+SO!Crystal Frequency!0!1!12 MHz:0|24 MHz:1!{sosend(e,'0x2C','0x04','0b10000000');}
+
+**RDS**
+FR!RDS!width:25%;background-color:navy;color:white;margin:2px;padding:5px;border:1px solid black;border-radius:5px;display:inline-block;
+CB!RDS Enabled!0!0!{tb(e,'0x2C','0x12','0b10000000');}
+TB!Send Station Name!0!QN  8027!{var name = e.value;var freshbit = await gv('0x2C','0x07','0b00001000');var refbit = freshbit;for(var i=0;i<name.length;i+=2){sv('0x2C','0x08','0xFF','0x64');sv('0x2C','0x09','0xFF','0x00');sv('0x2C','0x0A','0xFF','0x02');sv('0x2C','0x0B','0xFF',(0x68+(i/2))+'');sv('0x2C','0x0C','0xFF','0xE0');sv('0x2C','0x0D','0xFF','0xCD');sv('0x2C','0x0E','0xFF',name.charCodeAt(i)+'');sv('0x2C','0x0F','0xFF',name.charCodeAt(i+1)+'');sendTB('0x2C','0x00','0b00000100');while(refbit==freshbit){await delay(50);freshbit = await gv('0x2C','0x07','0b00001000');}var refbit = freshbit;}}
+TB!Send Program Metadata!0!Manoj Bhakar PCM!{var name = e.value;var freshbit = await gv('0x2C','0x07','0b00001000');var refbit = freshbit;for(var i=0;i<name.length;i+=4){sv('0x2C','0x08','0xFF','0x64');sv('0x2C','0x09','0xFF','0x00');sv('0x2C','0x0A','0xFF','0x22');sv('0x2C','0x0B','0xFF',(0x60+(i/4))+'');sv('0x2C','0x0C','0xFF',name.charCodeAt(i)+'');sv('0x2C','0x0D','0xFF',name.charCodeAt(i+1)+'');sv('0x2C','0x0E','0xFF',name.charCodeAt(i+2)+'');sv('0x2C','0x0F','0xFF',name.charCodeAt(i+3)+'');sendTB('0x2C','0x00','0b00000100');while(refbit==freshbit){await delay(50);freshbit = await gv('0x2C','0x07','0b00001000');}var refbit = freshbit;}}
